@@ -1,6 +1,6 @@
 <template>
-  <div v-if="show" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-75">
-    <div class="bg-white rounded-lg p-6 w-1/4">
+  <div v-if="show" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-75" @click="modalStore.closeModal">
+    <div class="bg-white rounded-lg p-6 w-1/4" @click.stop>
       <h2 class="text-lg font-semibold mb-4">Create New Post</h2>
       <form @submit.prevent="createPost">
         <div class="mb-4">
@@ -33,7 +33,7 @@
           <button
             type="button"
             class="bg-gray-300 text-gray-800 px-4 py-2 rounded-md"
-            @click="cancel"
+            @click="closeAndReset"
           >
             Cancel
           </button>
@@ -48,24 +48,24 @@ import { ref } from 'vue';
 import { usePostStore } from '../stores/main';
 import { useModalStore } from '../stores/modal';
 
-const props = defineProps<{ show: boolean }>();
+defineProps<{ show: boolean }>();
 const postStore = usePostStore();
 const modalStore = useModalStore();
 
 const title = ref('');
 const body = ref('');
 
-const createPost = async () => {
-  await postStore.createPost(title.value, body.value);
+const closeAndReset = () => {
   title.value = '';
   body.value = '';
   modalStore.closeModal();
 };
 
-const cancel = () => {
-  title.value = '';
-  body.value = '';
-  modalStore.closeModal();
-};
+const createPost = async () => {
+  await postStore.createPost(title.value, body.value)
+  .then(closeAndReset())
+  
+  
+}
 </script>
 

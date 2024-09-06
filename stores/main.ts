@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
-import axios from "axios";
+import { useNuxtApp } from "#app";
+import { toast } from "vue3-toastify";
 
 interface Post {
   id: number;
@@ -30,20 +31,19 @@ export const usePostStore = defineStore("postStore", {
 
   actions: {
     async fetchPosts(page: number = 1) {
+      const { $axios } = useNuxtApp();
       this.isLoading = true;
       this.error = null;
 
       try {
-        const response = await axios.get(
-          "https://jsonplaceholder.typicode.com/posts"
-        );
+        const response = await $axios.get("/posts");
         this.allPosts = response.data;
 
-        this.totalPages = Math.ceil(this.allPosts.length / 10);
-
+        this.calculateTotalPages();
         this.updatePostsForCurrentPage(page);
       } catch (err) {
         this.error = "Failed to load posts";
+        toast.error(this.error, { position: "top-right" });
       } finally {
         this.isLoading = false;
       }
@@ -52,13 +52,7 @@ export const usePostStore = defineStore("postStore", {
     sortPostsById() {
       this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
 
-      this.allPosts.sort((a, b) => {
-        if (this.sortDirection === "asc") {
-          return a.id - b.id;
-        } else {
-          return b.id - a.id;
-        }
-      });
+      this.allPosts.sort((a, b) => (this.sortDirection === "asc" ? a.id - b.id : b.id - a.id));
 
       this.updatePostsForCurrentPage(this.currentPage);
     },
@@ -69,19 +63,33 @@ export const usePostStore = defineStore("postStore", {
       this.posts = this.allPosts.slice(startIndex, startIndex + 10);
     },
 
-    createPost(title: string, body: string) {
+    calculateTotalPages() {
+      this.totalPages = Math.ceil(this.allPosts.length / 10);
+    },
+
+    async createPost(title: string, body: string) {
+      const { $axios } = useNuxtApp();
       const newPost = {
-        id: Date.now(),
         title,
         body,
         userId: 1,
       };
 
-      this.allPosts.unshift(newPost);
+      try {
+        const response = await $axios.post("/posts", newPost, {
+          headers: { "Content-Type": "application/json" },
+        });
 
-      this.totalPages = Math.ceil(this.allPosts.length / 10);
+        const createdPost = response.data;
+        this.allPosts.push(createdPost);
+        this.calculateTotalPages();
+        this.updatePostsForCurrentPage(this.currentPage);
 
-      this.updatePostsForCurrentPage(this.currentPage);
+        toast.success("Post successfully added!", { position: "top-right" });
+      } catch (error) {
+        this.error = "Failed to create post";
+        toast.error(this.error, { position: "top-right" });
+      }
     },
 
     nextPage() {
@@ -98,17 +106,9 @@ export const usePostStore = defineStore("postStore", {
   },
 
   getters: {
-    getPosts(state: PostState) {
-      return state.posts;
-    },
-    getIsLoading(state: PostState) {
-      return state.isLoading;
-    },
-    getCurrentPage(state: PostState) {
-      return state.currentPage;
-    },
-    getTotalPages(state: PostState) {
-      return state.totalPages;
-    },
+    getPosts: (state: PostState) => state.posts,
+    getIsLoading: (state: PostState) => state.isLoading,
+    getCurrentPage: (state: PostState) => state.currentPage,
+    getTotalPages: (state: PostState) => state.totalPages,
   },
 });
